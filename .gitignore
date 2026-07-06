@@ -1,0 +1,16 @@
+# Secrets — niemals committen (.env.example ist die Vorlage)
+.env
+.env.*
+!.env.example
+
+# Transiente Analyse-Artefakte (Videos, Frames, Outputs)
+output/
+*.mp4
+*.mov
+*.webm
+*.m4a
+*.wav
+
+# OS / Editor
+.DS_Store
+Thumbs.db

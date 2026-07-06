@@ -14,15 +14,20 @@ CAP="${2:-40}"   # max. Keyframes (Scene-Detection liefert oft mehr → wird gle
 FFMPEG="$(command -v ffmpeg)"; FFPROBE="$(command -v ffprobe)"; YTDLP="$(command -v yt-dlp)"
 [ -z "$YTDLP" ] && { echo "yt-dlp fehlt: brew install yt-dlp" >&2; exit 1; }
 
-VID="$("$YTDLP" --no-warnings --print id "$URL" | head -1)"
-TITLE="$("$YTDLP" --no-warnings --print title "$URL" | head -1)"
+# SICHERHEIT: NIE Account-Cookies/Login — das würde den Nutzer-Account einloggen und
+# riskiert dessen Sperre. Dieser Wrapper erzwingt anonymen Abruf bei JEDEM yt-dlp-Aufruf.
+# Login-gated Videos scheitern absichtlich, NICHT mit Cookies umgehen.
+ytdlp(){ "$YTDLP" --no-cookies --no-cookies-from-browser "$@"; }
+
+VID="$(ytdlp --no-warnings --print id "$URL" | head -1)"
+TITLE="$(ytdlp --no-warnings --print title "$URL" | head -1)"
 OUT="$PWD/output/video-ingest/$VID"
 mkdir -p "$OUT/hook"
 echo "▶ $TITLE  [$VID]"
 echo "  → $OUT"
 
 # 1) Untertitel (auto + manuell), Deutsch bevorzugt, sonst Englisch
-"$YTDLP" --no-warnings --skip-download --write-auto-subs --write-subs \
+ytdlp --no-warnings --skip-download --write-auto-subs --write-subs \
   --sub-langs "de,de-orig,en,en-orig,en-US" --sub-format vtt \
   -o "$OUT/sub" "$URL" >/dev/null 2>&1 || true
 
@@ -51,9 +56,9 @@ else
 fi
 
 # 2) Video (klein, ≤480p) für Frames laden
-"$YTDLP" --no-warnings -f "bv*[height<=480]+ba/b[height<=480]/18/b" \
+ytdlp --no-warnings -f "bv*[height<=480]+ba/b[height<=480]/18/b" \
   --merge-output-format mp4 -o "$OUT/video.%(ext)s" "$URL" >/dev/null 2>&1 || \
-  "$YTDLP" --no-warnings -f "best[height<=720]/best" -o "$OUT/video.%(ext)s" "$URL" >/dev/null 2>&1
+  ytdlp --no-warnings -f "best[height<=720]/best" -o "$OUT/video.%(ext)s" "$URL" >/dev/null 2>&1
 VIDEO="$(ls "$OUT"/video.* 2>/dev/null | grep -vE '\.(vtt|txt)$' | head -1 || true)"
 
 # 3) Keyframes (gleichmäßig) + dichte Hook-Frames (erste 30 Sek)

@@ -87,12 +87,16 @@ export async function ingestOne(url, { keepVideo = true, meta = null, profile = 
   const infoPath = join(dir, 'video.info.json');
   try {
     if (!existsSync(videoPath)) {
-      await exec('yt-dlp', ['--no-warnings', '-f', 'bv*+ba/b', '-S', 'res:720',
+      // SICHERHEIT: --no-cookies* erzwingt ANONYMEN Abruf über die öffentliche URL.
+      // NIE Account-Cookies/Login für Instagram — das würde den Nutzer-Account einloggen
+      // und riskiert dessen Sperre. Login-gated Reels scheitern absichtlich (siehe catch).
+      await exec('yt-dlp', ['--no-cookies', '--no-cookies-from-browser',
+        '--no-warnings', '-f', 'bv*+ba/b', '-S', 'res:720',
         '--merge-output-format', 'mp4', '--write-info-json',
         '-o', join(dir, 'video.%(ext)s'), url], { timeout: 180000, maxBuffer: 1 << 26 });
     }
   } catch (e) {
-    return { id, url, status: 'fail', error: 'yt-dlp: ' + String(e.stderr || e.message).slice(0, 200), dir };
+    return { id, url, status: 'fail', error: 'yt-dlp (login-gated/blockiert ist ERWARTET — NICHT mit Cookies/Login umgehen, das sperrt den Account): ' + String(e.stderr || e.message).slice(0, 200), dir };
   }
   if (!existsSync(videoPath)) return { id, url, status: 'fail', error: 'kein video.mp4 nach Download', dir };
 

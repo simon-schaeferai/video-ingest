@@ -46,7 +46,7 @@ export function falVideoModel() {
  */
 export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens = 8192, temperature = 0.3, systemPrompt } = {}) {
   const KEY = await loadFalKey();
-  if (!KEY) { const e = new Error('FAL_KEY fehlt → in frontend/.env.local eintragen'); e.status = 0; throw e; }
+  if (!KEY) { const e = new Error('FAL_KEY fehlt → in <skill>/.env eintragen (cp .env.example .env), oder als Umgebungsvariable setzen. Key: https://fal.ai/dashboard/keys'); e.status = 0; throw e; }
   const headers = { Authorization: `Key ${KEY}`, 'Content-Type': 'application/json' };
   const app = videoUrls.length ? 'openrouter/router/video' : 'openrouter/router';
   const payload = JSON.stringify({

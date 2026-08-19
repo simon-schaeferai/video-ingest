@@ -14,3 +14,6 @@ output/
 # OS / Editor
 .DS_Store
 Thumbs.db
+
+# interner Pipeline-Zustand, gehört nicht ins öffentliche Repo
+.asset-pipeline.json

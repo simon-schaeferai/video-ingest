@@ -118,5 +118,16 @@ Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **
 
 ## Grenzen (ehrlich)
 - Weg B kann nur **öffentliche YouTube-URLs**. Alles andere → Weg C.
-- Sehr lange Videos können am 6-Minuten-Timeout des Fal-Routers scheitern; Output ist auf 8k Tokens begrenzt (Verbatim-Transkripte langer Videos ggf. unvollständig).
+- **Videolänge: eine Stunde ist die harte Grenze** (getestet 19.08.2026, drei Läufe):
+  **57:59 läuft durch** (7.108 Zeichen Ergebnis, 77 s Laufzeit) · **60:11 wird abgelehnt** (`Fal result 400`, 50 s)
+  · **124:46 wird abgelehnt** (400, 69 s). Die Schwelle liegt bei 3.600 Sekunden. Darüber hilft nur,
+  das Video vorher zu teilen. Die Ablehnung kommt schnell, es ist **kein** Timeout.
+- Das **6-Minuten-Limit in `fal-router.mjs:68`** (`Date.now() + 360_000`) ist das Polling-Limit der
+  Queue, **nicht** die Videolänge. Kein Test kam ihm nahe: der längste erfolgreiche Lauf brauchte 77 s.
+- **Antwort-Deckel je Weg:** `analyze-gemini.mjs` (Weg B) und `transcribe-gemini.mjs` fahren
+  `maxTokens: 8192`, `analyze-file-gemini.mjs` (Weg C) dagegen `24576` — Datei-Läufe liefern also
+  deutlich mehr Text. Verbatim-Transkripte langer Videos können auf Weg B unvollständig sein.
+- **Lokale Dateien sind kein Sonderfall:** `analyze-file-gemini.mjs <datei>` nimmt jede Videodatei
+  (auch stumme Screen-Recordings). Nur als **Link** versteht der Skill ausschließlich YouTube;
+  alles andere muss vorher als Datei vorliegen (Weg C spiegelt sie in den Bucket).
 - Weg C lädt die Datei in **deinen** Storage-Bucket (Public-URL) — bei fremdem Material an Aufräumen denken.

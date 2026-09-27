@@ -22,9 +22,9 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseCliArgs, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
 
 const exec = promisify(execFile);
@@ -128,8 +128,10 @@ export async function ingestOne(url, { keepVideo = true, meta = null, profile = 
   return { id, url, status: 'ok', record: rec, dir };
 }
 
-// CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI — argv[1] über realpath auflösen. Node lädt das Modul über den echten Pfad, der
+// globale Skill liegt aber hinter einem Symlink (~/.claude/skills/video-ingest). Der alte
+// String-Vergleich war dort immer false: Script endete still mit Exit 0, ohne etwas zu tun.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const { positional, profile, outdir } = parseCliArgs(process.argv.slice(2));
   const url = positional[0];
   if (!url) { console.error('Usage: ingest-instagram.mjs "<reel-url>" [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }

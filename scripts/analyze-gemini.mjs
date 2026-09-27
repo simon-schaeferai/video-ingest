@@ -5,7 +5,7 @@
    Kein Frame-Sampling, keine lokale Download-/ffmpeg-Pipeline nötig.
 
    Auth: FAL_KEY aus env, ./.env oder <skill>/.env. Nie loggen.
-   Modell: FAL_VIDEO_MODEL (default google/gemini-2.5-flash — video-fähig).
+   Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash — video-fähig).
    Usage: node scripts/analyze-gemini.mjs "<youtube-url>" [--profile script-anatomy] [--outdir <pfad>]
 
    --profile script-anatomy → statt understanding.md entstehen
@@ -30,7 +30,7 @@ const { positional, profile, outdir } = parseCliArgs(process.argv.slice(2));
 const URL_ = positional[0];
 if (!URL_) { console.error('Usage: analyze-gemini.mjs "<youtube-url>" [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }
 const IS_ANATOMY = profile === 'script-anatomy';
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const VID = (URL_.match(/[?&]v=([\w-]{6,})/) || URL_.match(/youtu\.be\/([\w-]{6,})/) || [])[1] || 'video';
 
 const PROMPT = `Du analysierst dieses YouTube-Video umfassend für ein YouTube-Content-System (Bild + Ton + Ablauf zusammen). Antworte auf DEUTSCH, kompakt und strukturiert als Markdown. Erfinde nichts; gib grobe Timestamps (mm:ss).

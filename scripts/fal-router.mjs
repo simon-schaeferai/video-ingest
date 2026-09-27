@@ -8,7 +8,7 @@
    in Tests intermittierend 401, die Queue blieb stabil (Latenz ist hier egal).
 
    Auth: FAL_KEY aus env, ./.env (Arbeitsverzeichnis) oder <skill>/.env. Nie loggen.
-   Modell: FAL_VIDEO_MODEL (default google/gemini-2.5-flash, video-fähig).
+   Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash, video-fähig).
    ═══════════════════════════════════════════════════════════════════════════ */
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -37,7 +37,7 @@ export async function loadFalKey() {
 }
 
 export function falVideoModel() {
-  return process.env.FAL_VIDEO_MODEL || 'google/gemini-2.5-flash';
+  return process.env.FAL_VIDEO_MODEL || 'google/gemini-3.8-flash';
 }
 
 /**
@@ -55,6 +55,7 @@ export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens 
     ...(systemPrompt ? { system_prompt: systemPrompt } : {}),
     temperature,
     max_tokens: maxTokens,
+    reasoning: true,
     ...(videoUrls.length ? { video_urls: videoUrls } : {}),
   });
 
@@ -64,18 +65,27 @@ export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens 
     e.status = sub.status;
     throw e;
   }
-  const { response_url } = await sub.json();
+  const { response_url, status_url, request_id } = await sub.json();
+  // Preserve provider diagnostics without exposing the authentication key.
+  const failure = async (response, stage) => {
+    const detail = (await response.text()).replaceAll(KEY, '[REDACTED]');
+    const e = new Error(`Fal ${stage} ${response.status} [request ${request_id}]: ${detail}`);
+    e.status = response.status;
+    e.requestId = request_id;
+    return e;
+  };
   const deadline = Date.now() + 360_000; // 6 min — lange Videos brauchen im Router länger
   for (;;) {
     await new Promise((r) => setTimeout(r, 2500));
-    if (Date.now() > deadline) throw new Error('Fal queue: Timeout (6 min)');
-    const st = await fetch(`${response_url}/status`, { headers });
+    if (Date.now() > deadline) throw new Error(`Fal queue: Timeout (6 min) [request ${request_id}]`);
+    const st = await fetch(status_url || `${response_url}/status`, { headers });
+    if (!st.ok) throw await failure(st, 'status');
     const s = await st.json();
     if (s.status === 'COMPLETED') break;
-    if (s.status === 'FAILED' || s.status === 'CANCELLED') throw new Error(`Fal queue: ${s.status}`);
+    if (s.status === 'FAILED' || s.status === 'CANCELLED') throw new Error(`Fal queue: ${s.status} [request ${request_id}]: ${JSON.stringify(s).replaceAll(KEY, '[REDACTED]')}`);
   }
   const res = await fetch(response_url, { headers });
-  if (!res.ok) throw new Error(`Fal result ${res.status}`);
+  if (!res.ok) throw await failure(res, 'result');
   const d = await res.json();
   const txt = typeof d?.output === 'string' ? d.output.trim() : '';
   if (!txt) throw new Error('Fal: leere Antwort — ' + JSON.stringify(d).slice(0, 200));

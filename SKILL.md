@@ -1,6 +1,6 @@
 ---
 name: video-ingest
-description: Lässt Claude Videos WIRKLICH anschauen (Bild + Ton + Ablauf), nicht nur Transkripte lesen. **Bevorzugt (B):** natives Video-Verständnis — die YouTube-URL geht direkt an ein video-fähiges Gemini-Modell über Fals OpenRouter-Router (ein FAL_KEY reicht) → strukturiertes `understanding.md`. **Fallback (A, key-frei):** Transkript (yt-dlp) + Scene-Keyframes, deren Vision an einen Subagenten delegiert wird (Text zurück, keine Bilder im Hauptkontext). **Weg C:** Instagram-Reels und lokale Videodateien — yt-dlp lädt das Video, es wird in einen Storage-Bucket gespiegelt und von Gemini via Fal analysiert → Script-Anatomie als record.json. Nutze diesen Skill IMMER, wenn eine YouTube-URL (youtube.com/watch, youtu.be) auftaucht und der Inhalt gebraucht wird, oder wenn der User „analysiere dieses Video", „transkribier das", „schau dir das an", „was sagt das Video" o.ä. sagt.
+description: Lässt den Agenten (Claude Code oder Codex) Videos WIRKLICH anschauen (Bild + Ton + Ablauf), nicht nur Transkripte lesen. **Bevorzugt (B):** natives Video-Verständnis — die YouTube-URL geht direkt an ein video-fähiges Gemini-Modell über Fals OpenRouter-Router (ein FAL_KEY reicht) → strukturiertes `understanding.md`. **Fallback (A, key-frei):** Transkript (yt-dlp) + Scene-Keyframes, deren Vision an einen Subagenten delegiert wird (Text zurück, keine Bilder im Hauptkontext). **Weg C:** Instagram-Reels und lokale Videodateien — yt-dlp lädt das Video, es wird in einen Storage-Bucket gespiegelt und von Gemini via Fal analysiert → Script-Anatomie als record.json. Nutze diesen Skill IMMER, wenn eine Video-URL (YouTube, Instagram-Reel, TikTok) oder eine lokale Videodatei auftaucht und der Inhalt gebraucht wird — auch beim nackten Link, statt yt-dlp/Web-Fetch von Hand, oder wenn der User „analysiere dieses Video", „transkribier das", „schau dir das an", „was sagt das Video" o.ä. sagt.
 trigger-phrases:
   - "analysiere dieses video"
   - "transkribier"
@@ -18,9 +18,13 @@ trigger-phrases:
 
 # video-ingest · Video-URL → verstehen (Bild + Ton + Ablauf)
 
-URL rein → **Text-Verständnis** raus. Claude „sieht" das Video über ein video-fähiges Gemini-Modell (Weg B/C) oder über Keyframes + Subagent (Weg A) und arbeitet danach nur mit Text weiter — kein manuelles Transkript-Pasten mehr. Das ist der Enabler für alles, was auf echten Videos basiert: Ideen ableiten, Konkurrenz-Hooks analysieren, Skript-Anatomien minen.
+URL rein → **Text-Verständnis** raus. Der Agent „sieht" das Video über ein video-fähiges Gemini-Modell (Weg B/C) oder über Keyframes + Subagent (Weg A) und arbeitet danach nur mit Text weiter — kein manuelles Transkript-Pasten mehr. Das ist der Enabler für alles, was auf echten Videos basiert: Ideen ableiten, Konkurrenz-Hooks analysieren, Skript-Anatomien minen.
 
-**Alle Scripts liegen in `<skill-dir>/scripts/` (also z.B. `.claude/skills/video-ingest/scripts/`). Alle Outputs landen in `./output/` im Arbeitsverzeichnis.** Scripts mit absolutem Pfad oder vom Projekt-Root aufrufen.
+**Alle Scripts liegen in `<skill-dir>/scripts/` (Claude Code: `~/.claude/skills/video-ingest/scripts/`, Codex: `~/.agents/skills/video-ingest/scripts/` — derselbe Ordner). Alle Outputs landen in `./output/` im Arbeitsverzeichnis.** Scripts mit absolutem Pfad oder vom Projekt-Root aufrufen.
+
+
+<!-- WHY: Simon bestätigt am 25.09.2026 Gemini 3.8 Flash als dauerhaften Standard nach erfolgreichem Fal-Video-Ingest; 2.5-Zugang wurde vom Provider für diesen Weg abgewiesen. -->
+**Modellstandard (25.09.2026):** Fal nutzt `google/gemini-3.8-flash`; der explizit gewählte direkte Gemini-Weg nutzt `gemini-3.8-flash`. Gilt für Videoanalyse und Transkription. Explizite `FAL_VIDEO_MODEL`-/`GEMINI_MODEL`-Overrides bleiben maßgeblich. Kein automatischer Modell- oder Anbieterwechsel bei Fehlern. Erfolgreich geprüft: YouTube-Analyse über Fal; direkte Gemini- und Datei-/Reel-Aufrufe mit diesem Modell noch nicht live geprüft.
 
 ## Wann triggern
 Sobald eine **YouTube-URL** im Chat steht und der Inhalt relevant ist, oder der User um Transkript/Analyse/„schau dir das an" bittet. Auch beim Scannen von Quellen, wenn ein Video-Link auftaucht und Kontext gebraucht wird.
@@ -37,7 +41,7 @@ Schickt die **YouTube-URL direkt ans Gemini-Modell** über **Fals OpenRouter-Rou
 node <skill-dir>/scripts/analyze-gemini.mjs "<youtube-url>"
 ```
 → `./output/video-ingest/<id>/understanding.md`. **Das liest du (Text) — fertig.**
-- **Provider:** Default `fal` (Modell via `FAL_VIDEO_MODEL`, default `google/gemini-2.5-flash`). Direkter Gemini-Key als Alternative via `VIDEO_INGEST_PROVIDER=gemini` (`GEMINI_API_KEY` + `GEMINI_MODEL`).
+- **Provider:** Default `fal` (Modell via `FAL_VIDEO_MODEL`, default `google/gemini-3.8-flash`). Direkter Gemini-Key als Alternative via `VIDEO_INGEST_PROVIDER=gemini` (`GEMINI_API_KEY` + `GEMINI_MODEL`).
 
 ### A · Lokal (key-frei, Fallback) — Transkript + Scene-Frames + Vision-Subagent
 Wenn kein Key da ist (oder das Video nicht öffentlich abrufbar ist):
@@ -97,6 +101,8 @@ bash <skill-dir>/scripts/export-md.sh <video-id> [zielordner]   # default: ~/Dow
 (`output/` gehört in die `.gitignore` — transiente Analyse-Artefakte.)
 
 ## Vision-Brief (an den Subagenten, Weg A)
+> **Codex / Agent ohne Subagenten:** Frames nicht alle in den eigenen Kontext laden. Stattdessen Weg B/C nutzen (liefert die Bildanalyse als Text) oder höchstens die `hook/`-Frames plus 1–2 Stichproben ansehen.
+
 Der Subagent liest alle Frames (`frame_*.jpg` + `hook/`) und schreibt `visual-analysis.md`; achten auf:
 - **Visueller Hook (hook/-Frames, erste ~30 Sek):** Text-on-Screen (3–5 Wörter)? Talking-Head oder Screen? Was sieht man zuerst?
 - **Format/Tempo:** Talking-Head vs. Screen-Recording vs. Diagramme/B-Roll; Webcam-Overlay; Schnitt-Eindruck.
@@ -131,3 +137,9 @@ Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **
   (auch stumme Screen-Recordings). Nur als **Link** versteht der Skill ausschließlich YouTube;
   alles andere muss vorher als Datei vorliegen (Weg C spiegelt sie in den Bucket).
 - Weg C lädt die Datei in **deinen** Storage-Bucket (Public-URL) — bei fremdem Material an Aufräumen denken.
+- **Weg C, Dateigröße: ~14 MB ist die harte Grenze pro Datei** (getestet 18.09.2026): Fal reicht die Datei
+  Base64-inline an Google AI Studio weiter, dessen Limit 20.000.000 Bytes beträgt — 117,9 MB → `Fal result 400
+  „Request body exceeds the provider maximum size"`. Der Upload in den Bucket klappt trotzdem (Datei bleibt dort liegen).
+  Abhilfe: vorher Proxy schneiden, bei Bedarf in Teile splitten, z. B. `ffmpeg -ss <start> -t <dauer> -i in.mp4
+  -vf "scale=640:-2,fps=12" -c:v libx264 -b:v 260k -maxrate 290k -bufsize 580k -c:a aac -b:a 40k -ac 1 part.mp4`
+  (≈ 10 MB pro 5 Min., für Screen-Recordings noch gut lesbar). Jede Hälfte einzeln mit `--outdir` analysieren.

@@ -5,7 +5,7 @@
    Schickt die YouTube-URL direkt an Gemini (hört das Audio) → transcript.md.
 
    Auth: FAL_KEY aus env, ./.env oder <skill>/.env. Nie loggen.
-   Modell: FAL_VIDEO_MODEL (default google/gemini-2.5-flash).
+   Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash).
    Usage: node scripts/transcribe-gemini.mjs "<youtube-url>" [outfile.md]
           ohne outfile → ./output/video-ingest/<id>/transcript.md
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -20,7 +20,7 @@ async function loadKey() {
 
 const URL_ = process.argv[2];
 if (!URL_) { console.error('Usage: transcribe-gemini.mjs "<youtube-url>" [outfile.md]'); process.exit(2); }
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const VID = (URL_.match(/[?&]v=([\w-]{6,})/) || URL_.match(/youtu\.be\/([\w-]{6,})/) || [])[1] || 'video';
 const OUT = process.argv[3] || join(process.cwd(), 'output', 'video-ingest', VID, 'transcript.md');
 

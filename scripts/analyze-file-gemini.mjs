@@ -12,7 +12,7 @@
    Auth: FAL_KEY + SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY aus env, ./.env
    oder <skill>/.env. Bucket via VIDEO_INGEST_BUCKET (default research-videos,
    muss public-read sein). Nie loggen.
-   Modell: FAL_VIDEO_MODEL (default google/gemini-2.5-flash — video-fähig).
+   Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash — video-fähig).
    Usage: node analyze-file-gemini.mjs <video-datei> [--profile script-anatomy] [--outdir <pfad>]
 
    --profile script-anatomy → Verbatim-Transkript + Delivery-Anatomie statt der
@@ -42,7 +42,7 @@ const FILE = positional[0];
 if (!FILE || !existsSync(FILE)) { console.error('Usage: analyze-file-gemini.mjs <video-datei> [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }
 const IS_ANATOMY = profile === 'script-anatomy';
 const OUTDIR = outdir ? resolve(process.cwd(), outdir) : null;
-const MODEL = 'Fal · ' + (process.env.FAL_VIDEO_MODEL || 'google/gemini-2.5-flash');
+const MODEL = 'Fal · ' + (process.env.FAL_VIDEO_MODEL || 'google/gemini-3.8-flash');
 
 const PROMPT = `Du analysierst dieses Instagram-Reel, um sein SCRIPT zu rekonstruieren (für ein Reel-Content-System). Bild + Ton + Ablauf zusammen. Erfinde NICHTS; was unklar ist, lass leer.
 

@@ -9,6 +9,7 @@
 
    Auth: FAL_KEY aus env, ./.env (Arbeitsverzeichnis) oder <skill>/.env. Nie loggen.
    Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash, video-fähig).
+   Reasoning: standardmäßig an; FAL_REASONING=0 lässt das Feld weg.
    ═══════════════════════════════════════════════════════════════════════════ */
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -40,11 +41,17 @@ export function falVideoModel() {
   return process.env.FAL_VIDEO_MODEL || 'google/gemini-3.8-flash';
 }
 
+/** Reasoning-Flag für den Router: an, außer FAL_REASONING=0. Aus = Feld wird gar nicht
+ *  gesendet (ein explizites „Reasoning aus“ lehnte gemini-3.8-flash am 28.09.2026 mit 400 ab). */
+export function falReasoningDefault() {
+  return process.env.FAL_REASONING !== '0';
+}
+
 /**
  * prompt + optionale videoUrls → Text-Output des Modells.
  * Wirft mit .status bei HTTP-Fehler. Kein system_prompt → freier Text (Markdown), kein JSON-Zwang.
  */
-export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens = 8192, temperature = 0.3, systemPrompt } = {}) {
+export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens = 8192, temperature = 0.3, systemPrompt, reasoning = falReasoningDefault() } = {}) {
   const KEY = await loadFalKey();
   if (!KEY) { const e = new Error('FAL_KEY fehlt → in <skill>/.env eintragen (cp .env.example .env), oder als Umgebungsvariable setzen. Key: https://fal.ai/dashboard/keys'); e.status = 0; throw e; }
   const headers = { Authorization: `Key ${KEY}`, 'Content-Type': 'application/json' };
@@ -55,7 +62,7 @@ export async function falVideoRouter(prompt, { videoUrls = [], model, maxTokens 
     ...(systemPrompt ? { system_prompt: systemPrompt } : {}),
     temperature,
     max_tokens: maxTokens,
-    reasoning: true,
+    ...(reasoning ? { reasoning: true } : {}),
     ...(videoUrls.length ? { video_urls: videoUrls } : {}),
   });
 

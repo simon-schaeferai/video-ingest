@@ -135,6 +135,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.ar
   const { positional, profile, outdir } = parseCliArgs(process.argv.slice(2));
   const url = positional[0];
   if (!url) { console.error('Usage: ingest-instagram.mjs "<reel-url>" [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }
+  if (profile === 'edit-anatomy') { console.error('Profil edit-anatomy: Reel erst laden, dann analyze-file-gemini.mjs <datei> --profile edit-anatomy --outdir <pfad>'); process.exit(2); }
   const r = await ingestOne(url, { profile, outdir });
   if (r.status === 'fail') { console.error(`✗ ${r.id || url}: ${r.error}`); process.exit(1); }
   const mainFile = profile === 'script-anatomy' ? 'script-anatomy.md' : 'record.json';

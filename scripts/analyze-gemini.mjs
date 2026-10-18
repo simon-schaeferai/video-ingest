@@ -13,11 +13,14 @@
      (Delivery-Statistik, Hook-Delivery, Übergangsphrasen, CTA, Rhetorik-Moves).
    --outdir <pfad> → Output-Basis umleiten (Script hängt <video-id> selbst an);
      default: ./output/video-ingest/<id>/ im Arbeitsverzeichnis.
+   SCRIPT_ANATOMY_LONGFORM=1 → bei langen Videos nur die ersten 8 und letzten 2 Minuten
+     wörtlich transkribieren (sonst sprengt das Verbatim das Output-Limit); die Anatomie
+     läuft weiter übers ganze Video.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { parseCliArgs, SCRIPT_ANATOMY_PROMPT, splitScriptAnatomy, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
+import { parseCliArgs, SCRIPT_ANATOMY_PROMPT, LONGFORM_ADDON, splitScriptAnatomy, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
 import { falVideoRouter, falVideoModel, loadEnvValue } from './fal-router.mjs';
 
 const CWD = process.cwd();
@@ -29,6 +32,7 @@ async function loadKey() {
 const { positional, profile, outdir } = parseCliArgs(process.argv.slice(2));
 const URL_ = positional[0];
 if (!URL_) { console.error('Usage: analyze-gemini.mjs "<youtube-url>" [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }
+if (profile === 'edit-anatomy') { console.error('Profil edit-anatomy gibt es nur für lokale Dateien → analyze-file-gemini.mjs <datei> --profile edit-anatomy'); process.exit(2); }
 const IS_ANATOMY = profile === 'script-anatomy';
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const VID = (URL_.match(/[?&]v=([\w-]{6,})/) || URL_.match(/youtu\.be\/([\w-]{6,})/) || [])[1] || 'video';
@@ -43,7 +47,7 @@ const PROMPT = `Du analysierst dieses YouTube-Video umfassend für ein YouTube-C
 # 6 Kernaussagen / Takeaways (Bullets)`;
 
 const PROVIDER = (process.env.VIDEO_INGEST_PROVIDER || 'fal').toLowerCase();
-const promptText = IS_ANATOMY ? SCRIPT_ANATOMY_PROMPT : PROMPT;
+const promptText = IS_ANATOMY ? SCRIPT_ANATOMY_PROMPT + (process.env.SCRIPT_ANATOMY_LONGFORM === '1' ? LONGFORM_ADDON : '') : PROMPT;
 const TEMP = IS_ANATOMY ? 0.2 : 0.3;
 const LABEL = PROVIDER === 'fal' ? `Fal · ${falVideoModel()}` : `Gemini ${MODEL}`;
 let text = '';

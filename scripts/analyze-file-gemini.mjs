@@ -13,11 +13,14 @@
    oder <skill>/.env. Bucket via VIDEO_INGEST_BUCKET (default research-videos,
    muss public-read sein). Nie loggen.
    Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash — video-fähig).
-   Usage: node analyze-file-gemini.mjs <video-datei> [--profile script-anatomy] [--outdir <pfad>]
+   Usage: node analyze-file-gemini.mjs <video-datei> [--profile script-anatomy|edit-anatomy] [--outdir <pfad>]
 
    --profile script-anatomy → Verbatim-Transkript + Delivery-Anatomie statt der
      Default-Script-Rekonstruktion; stdout-JSON = { profile, transcript_verbatim_md,
      script_anatomy_md, … }. Ohne Flag: exakt heutiges Verhalten.
+   --profile edit-anatomy → Schnitt-Anatomie für den 1:1-Nachbau eines Kurzvideos
+     (Markdown, Reasoning immer an); stdout-JSON = { profile, edit_anatomy_md, … },
+     mit --outdir zusätzlich edit-anatomy.md.
    --outdir <pfad> → schreibt die Outputs ZUSÄTZLICH als Dateien direkt in <pfad>
      (script-anatomy: transcript-verbatim.md + script-anatomy.md · default: record.json).
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -25,8 +28,8 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
-import { parseCliArgs, SCRIPT_ANATOMY_PROMPT, splitScriptAnatomy, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
-import { falVideoRouter, loadEnvValue } from './fal-router.mjs';
+import { parseCliArgs, SCRIPT_ANATOMY_PROMPT, EDIT_ANATOMY_PROMPT, splitScriptAnatomy, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
+import { falVideoRouter, falReasoningDefault, loadEnvValue } from './fal-router.mjs';
 
 // Supabase-Config aus env / ./.env / <skill>/.env (für den Bucket-Upload; FAL_KEY holt fal-router selbst).
 async function loadSupabase() {
@@ -39,8 +42,9 @@ async function loadSupabase() {
 
 const { positional, profile, outdir } = parseCliArgs(process.argv.slice(2));
 const FILE = positional[0];
-if (!FILE || !existsSync(FILE)) { console.error('Usage: analyze-file-gemini.mjs <video-datei> [--profile script-anatomy] [--outdir <pfad>]'); process.exit(2); }
+if (!FILE || !existsSync(FILE)) { console.error('Usage: analyze-file-gemini.mjs <video-datei> [--profile script-anatomy|edit-anatomy] [--outdir <pfad>]'); process.exit(2); }
 const IS_ANATOMY = profile === 'script-anatomy';
+const IS_EDIT = profile === 'edit-anatomy';
 const OUTDIR = outdir ? resolve(process.cwd(), outdir) : null;
 const MODEL = 'Fal · ' + (process.env.FAL_VIDEO_MODEL || 'google/gemini-3.8-flash');
 
@@ -88,7 +92,8 @@ const sb = await loadSupabase();
 const videoUrl = await uploadToBucket(sb);
 let text;
 try {
-  text = await falVideoRouter(IS_ANATOMY ? SCRIPT_ANATOMY_PROMPT : PROMPT, { videoUrls: [videoUrl], maxTokens: 24576, temperature: 0.2 });
+  const prompt = IS_EDIT ? EDIT_ANATOMY_PROMPT : IS_ANATOMY ? SCRIPT_ANATOMY_PROMPT : PROMPT;
+  text = await falVideoRouter(prompt, { videoUrls: [videoUrl], maxTokens: 24576, temperature: 0.2, reasoning: IS_EDIT || falReasoningDefault() });
 } catch (e) {
   console.error(`Fal-Router fehlgeschlagen (${e.status ?? '?'}): ${e.message}`);
   process.exit(1);
@@ -96,7 +101,15 @@ try {
 if (!text) { console.error('Leere Antwort vom Fal-Router.'); process.exit(1); }
 text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim(); // Fal hängt manchmal einen Codezaun an
 
-if (IS_ANATOMY) {
+if (IS_EDIT) {
+  // Markdown-Antwort, kein JSON; mit --outdir als edit-anatomy.md abgelegt
+  if (OUTDIR) {
+    await mkdir(OUTDIR, { recursive: true });
+    await writeFile(join(OUTDIR, 'edit-anatomy.md'), `# Schnitt-Anatomie · ${basename(FILE)}\n\n> Modell: ${MODEL} · Quelle: ${basename(FILE)}\n\n${text}\n`, 'utf8');
+    console.error(`→ geschrieben: ${join(OUTDIR, 'edit-anatomy.md')}`);
+  }
+  process.stdout.write(JSON.stringify({ profile: 'edit-anatomy', model: MODEL, source_file: basename(FILE), edit_anatomy_md: text }) + '\n');
+} else if (IS_ANATOMY) {
   let sections;
   try { sections = splitScriptAnatomy(text); }
   catch (e) { console.error(e.message + '\n' + text.slice(0, 300)); process.exit(1); }

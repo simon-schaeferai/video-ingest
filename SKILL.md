@@ -29,9 +29,17 @@ URL rein → **Text-Verständnis** raus. Der Agent „sieht" das Video über ein
 ## Wann triggern
 Sobald eine **YouTube-URL** im Chat steht und der Inhalt relevant ist, oder der User um Transkript/Analyse/„schau dir das an" bittet. Auch beim Scannen von Quellen, wenn ein Video-Link auftaucht und Kontext gebraucht wird.
 
+## Verbindlicher Ausführungsweg
+- Bei Videoaufträgen die passende **ausführbare Pipeline** unten nutzen: B (native Analyse), A (lokaler Ingest + Frame-Vision) oder C (lokale Datei/Reel + Analyse). Nur den Skill lesen oder Untertitel abrufen ist kein vollständiger Video-Ingest.
+- **Keine Video-Sichtung im Browser**, weder als Ersatz noch ergänzend. Auch ein Vision-Subagent liest ausschließlich die lokalen Ingest-Frames, keine Player-Screenshots.
+- Vorhandene passende Ingest-Artefakte wiederverwenden. Bei Teilständen genau sagen, welche Pipeline lief, welche Artefakte vorliegen und welcher Schritt fehlt. Ein Transkript allein ist eine transkriptbasierte Auswertung; Frame-Stichproben sind keine lückenlose audiovisuelle Sichtung.
+- Anbieter-/Modell-Defaults der Scripts sind **keine Kostenfreigabe**. Weg B/C kosten Geld (Fal); gibt es keine Freigabe des Nutzers dafür, den key-freien Weg A nehmen. Bei einem echten Fehler den Fehler melden, nicht still auf einen anderen bezahlten Anbieter, ein anderes Modell oder eine Wiederholung ausweichen.
+- Downloads bleiben anonym (siehe unten). Bei Zugangsfehlern nicht in den Browser ausweichen, sondern Fehler und fehlenden Analyseschritt benennen.
+
 ## Voraussetzungen
 - Weg B/C: `FAL_KEY` in `.env` (siehe SETUP.md). Weg C zusätzlich: Supabase-Bucket.
 - Weg A/C: `yt-dlp` + `ffmpeg` (`brew install yt-dlp ffmpeg`), python3 + bc (Standard).
+- **Download scheitert mit HTTP 403?** Zuerst `yt-dlp --version` prüfen: Ein veraltetes yt-dlp scheitert oft dort, wo das aktuelle offizielle Release durchkommt (beobachtet 16.09.2026: 2026.03.17 → 403, 2026.08.19 → ok). Ein aktuelles Release kann auch isoliert installiert und per `PATH` nur für diesen Lauf genutzt werden. Keine Cookies oder Logins ergänzen; ein Update garantiert keinen Zugriff und rechtfertigt keine blinden Wiederholungen.
 
 ## Drei Wege (B bevorzugt)
 
@@ -44,11 +52,13 @@ node <skill-dir>/scripts/analyze-gemini.mjs "<youtube-url>"
 - **Provider:** Default `fal` (Modell via `FAL_VIDEO_MODEL`, default `google/gemini-3.8-flash`). Direkter Gemini-Key als Alternative via `VIDEO_INGEST_PROVIDER=gemini` (`GEMINI_API_KEY` + `GEMINI_MODEL`).
 
 ### A · Lokal (key-frei, Fallback) — Transkript + Scene-Frames + Vision-Subagent
-Wenn kein Key da ist (oder das Video nicht öffentlich abrufbar ist):
+Wenn kein Key da ist, keine Kostenfreigabe für B/C vorliegt oder B technisch scheitert:
 1. ```bash
    bash <skill-dir>/scripts/ingest.sh "<youtube-url>" [max_frames]
    ```
    → `transcript.txt` (aus Untertiteln) + **Scene-Keyframes** (`frame_*.jpg`, ein Bild pro echtem Bildwechsel) + `hook/` (erste 30 Sek dicht).
+   - Wiederholter Lauf setzt fort: vorhandenes `transcript.txt` und ein lesbares `video.*` werden wiederverwendet. Scheitert der Video-Download, bricht das Script mit Exit 1 ab und zeigt `download.log`, statt still nur das Transkript zu liefern.
+   - **Serienläufe:** YouTube drosselt den Untertitel-Endpunkt (HTTP 429, jede Sprache ein eigener Request). Dann `VIDEO_INGEST_SUB_LANGS="en"` (oder die eine passende Sprache) und `VIDEO_INGEST_SUB_SLEEP=5` setzen.
    - **Keine Untertitel?** → `node <skill-dir>/scripts/transcribe-gemini.mjs "<youtube-url>"` schreibt ein **verbatim** `transcript.md` (mit Timestamps) ins selbe Verzeichnis (braucht `FAL_KEY`).
 2. **Frame-Analyse an einen Vision-Subagenten delegieren** — er liest die Frames in **seinem** Kontext, schreibt `visual-analysis.md`, gibt nur **Text** zurück. **Nie 20–40 Bilder im Hauptkontext lesen** (~1–1,5k Tokens/Bild). Brief siehe „Vision-Brief" unten. Selbst max. 1–2 Frames zum Spot-Check.
 3. `transcript.txt` + `visual-analysis.md` lesen.
@@ -73,6 +83,13 @@ Für Delivery-/Scriptwriting-Studien: `--profile script-anatomy` liefert statt `
 node <skill-dir>/scripts/analyze-gemini.mjs "<youtube-url>" --profile script-anatomy
 node <skill-dir>/scripts/ingest-instagram.mjs "<reel-url>" --profile script-anatomy
 node <skill-dir>/scripts/analyze-file-gemini.mjs <datei.mp4> --profile script-anatomy --outdir <pfad>
+```
+- **Lange Videos (Weg B):** `SCRIPT_ANATOMY_LONGFORM=1` transkribiert nur die ersten 8 und die letzten 2 Minuten wörtlich (sonst sprengt das Verbatim das Output-Limit); die Anatomie läuft weiter übers ganze Video.
+
+### Edit-Anatomy-Profil (Schnitt nachbauen)
+Für den 1:1-Nachbau eines Kurzvideos (9:16): `--profile edit-anatomy` liefert eine **Schnitt-Anatomie** als Markdown — Aufnahme/Licht/Grading, Schnittliste mit Zeiten und Übergängen, Zooms/Punch-ins, Captions (Schrift, Animation, Hervorhebungslogik), Inserts/B-Roll, Sound-Design, Hook-Aufbau und die fünf prägendsten Handwerks-Entscheidungen mit konkreten Werten. Nur für lokale Dateien (Reel vorher laden, z. B. mit `ingest-instagram.mjs` oder yt-dlp); Reasoning ist dafür immer an.
+```bash
+node <skill-dir>/scripts/analyze-file-gemini.mjs <datei.mp4> --profile edit-anatomy --outdir <pfad>   # → <pfad>/edit-anatomy.md
 ```
 
 ### Export nach Downloads
@@ -113,7 +130,7 @@ Der Subagent liest alle Frames (`frame_*.jpg` + `hook/`) und schreibt `visual-an
 **Nichts erfinden**, Unsicheres als solches markieren. Rückgabe an den Hauptkontext: nur eine kurze **Text**-Zusammenfassung (keine Bilder).
 
 ## Wenn keine Untertitel da sind
-Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **Erste Wahl:** `transcribe-gemini.mjs` (verbatim `transcript.md` über Fal). Alternative ohne Key: Audio aus `video.mp4` ziehen und per **whisper** (`pip3 install openai-whisper`) transkribieren. Die Frames funktionieren trotzdem.
+Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **Erste Wahl (mit Kostenfreigabe):** `transcribe-gemini.mjs` (verbatim `transcript.md` über Fal). Alternative ohne Key: Audio aus `video.mp4` ziehen und per **whisper** (`pip3 install openai-whisper`) transkribieren. Die Frames funktionieren trotzdem.
 
 ## Verhalten
 - **🔒 NIE Account-Cookies/Login für Plattform-Downloads.** yt-dlp läuft immer anonym. Cookies/`--cookies-from-browser`/Login riskieren die Account-Sperre des Nutzers. Login-gated Videos scheitern absichtlich → melden, nicht umgehen. Gilt für alle Wege (A/C).
@@ -136,6 +153,7 @@ Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **
 - **Lokale Dateien sind kein Sonderfall:** `analyze-file-gemini.mjs <datei>` nimmt jede Videodatei
   (auch stumme Screen-Recordings). Nur als **Link** versteht der Skill ausschließlich YouTube;
   alles andere muss vorher als Datei vorliegen (Weg C spiegelt sie in den Bucket).
+- **Reasoning:** Der Fal-Router schickt standardmäßig `reasoning: true`. `FAL_REASONING=0` lässt das Feld ganz weg (live noch nicht gegen jedes Modell geprüft). Es wird bewusst weggelassen statt auf `false` gesetzt: ein explizites „Reasoning aus“ lehnte `gemini-3.8-flash` am 28.09.2026 mit 400 ab.
 - Weg C lädt die Datei in **deinen** Storage-Bucket (Public-URL) — bei fremdem Material an Aufräumen denken.
 - **Weg C, Dateigröße: ~14 MB ist die harte Grenze pro Datei** (getestet 18.09.2026): Fal reicht die Datei
   Base64-inline an Google AI Studio weiter, dessen Limit 20.000.000 Bytes beträgt — 117,9 MB → `Fal result 400

@@ -160,7 +160,7 @@ Manche Videos haben keine (Auto-)Subs → `transcript.txt` bleibt leer/fehlt. **
 - **Lokale Dateien sind kein Sonderfall:** `analyze-file-gemini.mjs <datei>` nimmt jede Videodatei
   (auch stumme Screen-Recordings). Nur als **Link** versteht der Skill ausschließlich YouTube;
   alles andere muss vorher als Datei vorliegen (Weg C spiegelt sie in den Bucket).
-- **Reasoning:** Der Fal-Router schickt standardmäßig `reasoning: true`. `FAL_REASONING=0` lässt das Feld ganz weg (live noch nicht gegen jedes Modell geprüft). Es wird bewusst weggelassen statt auf `false` gesetzt: ein explizites „Reasoning aus“ lehnte `gemini-3.8-flash` am 28.09.2026 mit 400 ab.
+- **Reasoning:** Der Fal-Router schickt standardmäßig `reasoning: true`, denn `gemini-3.8-flash` verlangt es: ohne das Feld antwortet Fal seit 28.09.2026 mit 400. `FAL_REASONING=0` lässt das Feld weg, nur für Modelle ohne diese Pflicht sinnvoll (`FAL_VIDEO_MODEL`).
 - Weg C lädt die Datei in **deinen** Storage-Bucket (Public-URL) — bei fremdem Material an Aufräumen denken.
 - **Weg C, Dateigröße: ~14 MB ist die harte Grenze pro Datei** (getestet 18.09.2026): Fal reicht die Datei
   Base64-inline an Google AI Studio weiter, dessen Limit 20.000.000 Bytes beträgt — 117,9 MB → `Fal result 400

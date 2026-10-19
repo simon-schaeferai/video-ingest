@@ -12,7 +12,7 @@
    Ablage: VIDEO_INGEST_OUTPUT_DIR (default ./output) und VIDEO_INGEST_ANALYSIS_DIR
    (default <output>/video-ingest), siehe outputDir()/analysisDir().
    Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash, video-fähig).
-   Reasoning: standardmäßig an; FAL_REASONING=0 lässt das Feld weg.
+   Reasoning: standardmäßig an (gemini-3.8-flash verlangt es); FAL_REASONING=0 lässt das Feld weg.
    ═══════════════════════════════════════════════════════════════════════════ */
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -61,8 +61,9 @@ export function falVideoModel() {
   return process.env.FAL_VIDEO_MODEL || 'google/gemini-3.8-flash';
 }
 
-/** Reasoning-Flag für den Router: an, außer FAL_REASONING=0. Aus = Feld wird gar nicht
- *  gesendet (ein explizites „Reasoning aus“ lehnte gemini-3.8-flash am 28.09.2026 mit 400 ab). */
+/** Reasoning-Flag für den Router: an, außer FAL_REASONING=0 (dann wird das Feld nicht gesendet).
+ *  gemini-3.8-flash verlangt Reasoning: ohne das Feld antwortet Fal seit 28.09.2026 mit 400.
+ *  FAL_REASONING=0 also nur für Modelle ohne diese Pflicht. */
 export function falReasoningDefault() {
   return process.env.FAL_REASONING !== '0';
 }

@@ -16,7 +16,7 @@
      (+ record-script-anatomy.json — koexistiert mit dem Default-record.json,
      Idempotenz-Check läuft pro Profil).
    --outdir <pfad> → Output-Basis umleiten (Script hängt <reel-id> selbst an);
-     default: ./output/reel-mining/<id>/ im Arbeitsverzeichnis.
+     default: $VIDEO_INGEST_OUTPUT_DIR (default ./output)/reel-mining/<id>/.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { execFile } from 'node:child_process';
@@ -26,6 +26,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseCliArgs, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
+import { outputDir } from './fal-router.mjs';
 
 const exec = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -75,7 +76,7 @@ export async function ingestOne(url, { keepVideo = true, meta = null, profile = 
   const isAnatomy = profile === 'script-anatomy';
   const dir = outdir
     ? join(resolve(CWD, outdir), id)
-    : join(CWD, 'output', 'reel-mining', id);
+    : join(outputDir(), 'reel-mining', id);
   // Idempotenz pro Profil: script-anatomy hat eine eigene Record-Datei,
   // damit ein bereits default-geminte Reel nicht fälschlich geskippt wird.
   const recPath = join(dir, isAnatomy ? 'record-script-anatomy.json' : 'record.json');

@@ -4,7 +4,7 @@
 # Claude liest danach transcript.txt + die Frames (= Vision) und versteht das Video selbst.
 #
 # Usage: ingest.sh <youtube-url> [max_frames]   (default 40 Keyframes)
-# Output: ./output/video-ingest/<id>/ im Arbeitsverzeichnis
+# Output: $VIDEO_INGEST_OUTPUT_DIR/video-ingest/<id>/ (default ./output im Arbeitsverzeichnis)
 # Deps:  yt-dlp, ffmpeg/ffprobe, python3, bc
 # Env (optional, für Serienläufe): VIDEO_INGEST_SUB_LANGS (default de,de-orig,en,en-orig,en-US)
 #      VIDEO_INGEST_SUB_SLEEP (Sekunden zwischen Untertitel-Requests, default 0)
@@ -24,7 +24,8 @@ ytdlp(){ "$YTDLP" --no-cookies --no-cookies-from-browser "$@"; }
 
 VID="$(ytdlp --no-warnings --print id "$URL" | head -1)"
 TITLE="$(ytdlp --no-warnings --print title "$URL" | head -1)"
-OUT="$PWD/output/video-ingest/$VID"
+OUTROOT="${VIDEO_INGEST_OUTPUT_DIR:-output}"; [[ "$OUTROOT" = /* ]] || OUTROOT="$PWD/$OUTROOT"
+OUT="$OUTROOT/video-ingest/$VID"
 mkdir -p "$OUT/hook"
 echo "▶ $TITLE  [$VID]"
 echo "  → $OUT"

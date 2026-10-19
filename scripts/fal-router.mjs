@@ -7,7 +7,10 @@
    Immer über den Queue-Weg (queue.fal.run + Polling): die Sync-Endpoints antworteten
    in Tests intermittierend 401, die Queue blieb stabil (Latenz ist hier egal).
 
-   Auth: FAL_KEY aus env, ./.env (Arbeitsverzeichnis) oder <skill>/.env. Nie loggen.
+   Auth: FAL_KEY aus env, $VIDEO_INGEST_ENV_FILE, ./.env (Arbeitsverzeichnis) oder
+   <skill>/.env. Nie loggen.
+   Ablage: VIDEO_INGEST_OUTPUT_DIR (default ./output) und VIDEO_INGEST_ANALYSIS_DIR
+   (default <output>/video-ingest), siehe outputDir()/analysisDir().
    Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash, video-fähig).
    Reasoning: standardmäßig an; FAL_REASONING=0 lässt das Feld weg.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -19,9 +22,26 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const SKILLROOT = resolve(__dirname, '..');
 
+// Ablage-Wurzeln. Relative Werte gelten ab dem Arbeitsverzeichnis.
+export function outputDir() {
+  return resolve(process.cwd(), process.env.VIDEO_INGEST_OUTPUT_DIR || 'output');
+}
+export function analysisDir() {
+  return process.env.VIDEO_INGEST_ANALYSIS_DIR
+    ? resolve(process.cwd(), process.env.VIDEO_INGEST_ANALYSIS_DIR)
+    : join(outputDir(), 'video-ingest');
+}
+
+// Env-Dateien in Suchreihenfolge: VIDEO_INGEST_ENV_FILE (z. B. die .env eines Projekts),
+// dann ./.env im Arbeitsverzeichnis, dann <skill>/.env.
+function envFiles() {
+  const extra = process.env.VIDEO_INGEST_ENV_FILE ? [resolve(process.cwd(), process.env.VIDEO_INGEST_ENV_FILE)] : [];
+  return [...extra, resolve(process.cwd(), '.env'), join(SKILLROOT, '.env')];
+}
+
 export async function loadEnvValue(names) {
   for (const n of names) if (process.env[n]) return process.env[n].trim();
-  for (const p of [resolve(process.cwd(), '.env'), join(SKILLROOT, '.env')]) {
+  for (const p of envFiles()) {
     if (existsSync(p)) {
       const txt = await readFile(p, 'utf8');
       for (const n of names) {

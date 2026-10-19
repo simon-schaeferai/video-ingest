@@ -3,8 +3,9 @@
 # sauber benannte MD-Dateien im Download-Ordner ab.
 #
 # Usage: export-md.sh <video-id> [zielordner]   (default: ~/Downloads)
-# Quelle: ./output/video-ingest/<id>/ im Arbeitsverzeichnis
-#   (transcript.md|txt, visual-analysis.md, understanding.md, metadata.txt)
+# Quelle: $VIDEO_INGEST_OUTPUT_DIR/video-ingest/<id>/ (default ./output im Arbeitsverzeichnis)
+#   (transcript.md|txt, visual-analysis.md, understanding.md, metadata.txt);
+#   understanding.md zusätzlich unter $VIDEO_INGEST_ANALYSIS_DIR/<id>/, falls gesetzt
 # Schreibt: <slug>-TRANSKRIPT.md + <slug>-VISUELLE-ANALYSE.md (Fallback: <slug>-VERSTAENDNIS.md)
 
 set -euo pipefail
@@ -13,7 +14,11 @@ VID="${1:?Usage: export-md.sh <video-id> [zielordner]}"
 DEST="${2:-$HOME/Downloads}"
 mkdir -p "$DEST"
 
-LOCAL="$PWD/output/video-ingest/$VID"
+OUTROOT="${VIDEO_INGEST_OUTPUT_DIR:-output}"; [[ "$OUTROOT" = /* ]] || OUTROOT="$PWD/$OUTROOT"
+LOCAL="$OUTROOT/video-ingest/$VID"
+# understanding.md (Weg B) kann separat liegen: $VIDEO_INGEST_ANALYSIS_DIR/<id>/
+ANA="${VIDEO_INGEST_ANALYSIS_DIR:-$OUTROOT/video-ingest}"; [[ "$ANA" = /* ]] || ANA="$PWD/$ANA"
+ANA="$ANA/$VID"
 
 # Titel ermitteln (für Dateinamen)
 TITLE=""
@@ -48,12 +53,13 @@ fi
 if [ -f "$LOCAL/visual-analysis.md" ]; then
   V_DEST="$DEST/$SLUG-VISUELLE-ANALYSE.md"
   cp "$LOCAL/visual-analysis.md" "$V_DEST"; WROTE+=("$V_DEST")
-elif [ -f "$LOCAL/understanding.md" ]; then
+elif [ -f "$ANA/understanding.md" ] || [ -f "$LOCAL/understanding.md" ]; then
   V_DEST="$DEST/$SLUG-VERSTAENDNIS.md"
-  cp "$LOCAL/understanding.md" "$V_DEST"; WROTE+=("$V_DEST")
+  U="$ANA/understanding.md"; [ -f "$U" ] || U="$LOCAL/understanding.md"
+  cp "$U" "$V_DEST"; WROTE+=("$V_DEST")
   echo "  ℹ Keine visual-analysis.md — stattdessen Gemini-Verständnis exportiert." >&2
 else
-  echo "  ⚠ Keine visuelle Analyse gefunden ($LOCAL/visual-analysis.md, $LOCAL/understanding.md) — übersprungen." >&2
+  echo "  ⚠ Keine visuelle Analyse gefunden ($LOCAL/visual-analysis.md, $ANA/understanding.md) — übersprungen." >&2
 fi
 
 if [ ${#WROTE[@]} -eq 0 ]; then

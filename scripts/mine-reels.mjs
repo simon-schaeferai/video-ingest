@@ -5,7 +5,7 @@
    Concurrency-Cap über alle URLs (ingest-instagram → Gemini-Anatomie), joint die
    Performance-Metadaten in jeden Record und schreibt den Korpus.
 
-   Output: ./output/reel-mining/_corpus.jsonl  (+ _failures.log)
+   Output: $VIDEO_INGEST_OUTPUT_DIR (default ./output)/reel-mining/_corpus.jsonl  (+ _failures.log)
    Heavy Work bleibt in den Subprozessen — hier kommt nur Text/JSON zusammen.
 
    Usage:
@@ -15,6 +15,7 @@
 import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ingestOne, reelId } from './ingest-instagram.mjs';
+import { outputDir } from './fal-router.mjs';
 
 const CWD = process.cwd();
 
@@ -66,7 +67,7 @@ records = records.filter((m) => { const id = reelId(m.url); if (seen.has(id)) re
 if (ONLY) records = records.filter((m) => ONLY.has(reelId(m.url)));
 if (LIMIT) records = records.slice(0, LIMIT);
 
-const outDir = join(CWD, 'output', 'reel-mining');
+const outDir = join(outputDir(), 'reel-mining');
 await mkdir(outDir, { recursive: true });
 const corpusPath = join(outDir, '_corpus.jsonl');
 const failPath = join(outDir, '_failures.log');

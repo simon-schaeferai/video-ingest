@@ -12,7 +12,7 @@
      transcript-verbatim.md (wortwörtlich, [mm:ss]/Zeile) + script-anatomy.md
      (Delivery-Statistik, Hook-Delivery, Übergangsphrasen, CTA, Rhetorik-Moves).
    --outdir <pfad> → Output-Basis umleiten (Script hängt <video-id> selbst an);
-     default: ./output/video-ingest/<id>/ im Arbeitsverzeichnis.
+     default: $VIDEO_INGEST_ANALYSIS_DIR/<id>/ bzw. ./output/video-ingest/<id>/.
    SCRIPT_ANATOMY_LONGFORM=1 → bei langen Videos nur die ersten 8 und letzten 2 Minuten
      wörtlich transkribieren (sonst sprengt das Verbatim das Output-Limit); die Anatomie
      läuft weiter übers ganze Video.
@@ -21,7 +21,7 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { parseCliArgs, SCRIPT_ANATOMY_PROMPT, LONGFORM_ADDON, splitScriptAnatomy, renderTranscriptMd, renderAnatomyMd } from './profiles.mjs';
-import { falVideoRouter, falVideoModel, loadEnvValue } from './fal-router.mjs';
+import { falVideoRouter, falVideoModel, loadEnvValue, analysisDir } from './fal-router.mjs';
 
 const CWD = process.cwd();
 
@@ -85,7 +85,7 @@ if (PROVIDER === 'fal') {
 }
 if (!text) { console.error('Leere Antwort vom Provider.'); process.exit(1); }
 
-const outBase = outdir ? resolve(CWD, outdir) : join(CWD, 'output', 'video-ingest');
+const outBase = outdir ? resolve(CWD, outdir) : analysisDir();
 const out = join(outBase, VID);
 await mkdir(out, { recursive: true });
 

@@ -20,7 +20,7 @@ trigger-phrases:
 
 URL rein → **Text-Verständnis** raus. Der Agent „sieht" das Video über ein video-fähiges Gemini-Modell (Weg B/C) oder über Keyframes + Subagent (Weg A) und arbeitet danach nur mit Text weiter — kein manuelles Transkript-Pasten mehr. Das ist der Enabler für alles, was auf echten Videos basiert: Ideen ableiten, Konkurrenz-Hooks analysieren, Skript-Anatomien minen.
 
-**Alle Scripts liegen in `<skill-dir>/scripts/` (Claude Code: `~/.claude/skills/video-ingest/scripts/`, Codex: `~/.agents/skills/video-ingest/scripts/` — derselbe Ordner). Alle Outputs landen in `./output/` im Arbeitsverzeichnis.** Scripts mit absolutem Pfad oder vom Projekt-Root aufrufen.
+**Alle Scripts liegen in `<skill-dir>/scripts/` (Claude Code: `~/.claude/skills/video-ingest/scripts/`, Codex: `~/.agents/skills/video-ingest/scripts/` — derselbe Ordner). Alle Outputs landen in `./output/` im Arbeitsverzeichnis** (umstellbar, siehe „Konfiguration pro Projekt“). Scripts mit absolutem Pfad oder vom Projekt-Root aufrufen.
 
 
 <!-- WHY: Simon bestätigt am 25.09.2026 Gemini 3.8 Flash als dauerhaften Standard nach erfolgreichem Fal-Video-Ingest; 2.5-Zugang wurde vom Provider für diesen Weg abgewiesen. -->
@@ -35,6 +35,13 @@ Sobald eine **YouTube-URL** im Chat steht und der Inhalt relevant ist, oder der 
 - Vorhandene passende Ingest-Artefakte wiederverwenden. Bei Teilständen genau sagen, welche Pipeline lief, welche Artefakte vorliegen und welcher Schritt fehlt. Ein Transkript allein ist eine transkriptbasierte Auswertung; Frame-Stichproben sind keine lückenlose audiovisuelle Sichtung.
 - Anbieter-/Modell-Defaults der Scripts sind **keine Kostenfreigabe**. Weg B/C kosten Geld (Fal); gibt es keine Freigabe des Nutzers dafür, den key-freien Weg A nehmen. Bei einem echten Fehler den Fehler melden, nicht still auf einen anderen bezahlten Anbieter, ein anderes Modell oder eine Wiederholung ausweichen.
 - Downloads bleiben anonym (siehe unten). Bei Zugangsfehlern nicht in den Browser ausweichen, sondern Fehler und fehlenden Analyseschritt benennen.
+
+## Konfiguration pro Projekt (optional)
+Ohne Variablen gilt der Standard oben. Ein Projekt kann die Ablage und die Key-Datei per Umgebungsvariable festlegen (in Claude Code z. B. im `env`-Block der Projekt-`.claude/settings.json`; Werte am besten absolut, relative gelten ab dem Arbeitsverzeichnis):
+- `VIDEO_INGEST_OUTPUT_DIR` — Wurzel für alle Ausgaben (`video-ingest/<id>/`, `reel-mining/<id>/`), Standard `./output`.
+- `VIDEO_INGEST_ANALYSIS_DIR` — wohin Weg B `<id>/understanding.md` (bzw. die Script-Anatomie ohne `--outdir`) schreibt, Standard `<OUTPUT_DIR>/video-ingest`. Für Projekte, die Analysen dauerhaft getrennt von den Rohdaten ablegen.
+- `VIDEO_INGEST_ENV_FILE` — zusätzliche Env-Datei mit `FAL_KEY` / `SUPABASE_*`, wird vor `./.env` und `<skill>/.env` gelesen.
+Die übrigen Schalter (`FAL_VIDEO_MODEL`, `FAL_REASONING`, `VIDEO_INGEST_SUB_*`, `SCRIPT_ANATOMY_LONGFORM`) wirken nur als Umgebungsvariable, nicht aus der `.env`.
 
 ## Voraussetzungen
 - Weg B/C: `FAL_KEY` in `.env` (siehe SETUP.md). Weg C zusätzlich: Supabase-Bucket.

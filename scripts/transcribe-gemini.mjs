@@ -7,12 +7,12 @@
    Auth: FAL_KEY aus env, ./.env oder <skill>/.env. Nie loggen.
    Modell: FAL_VIDEO_MODEL (default google/gemini-3.8-flash).
    Usage: node scripts/transcribe-gemini.mjs "<youtube-url>" [outfile.md]
-          ohne outfile → ./output/video-ingest/<id>/transcript.md
+          ohne outfile → $VIDEO_INGEST_OUTPUT_DIR (default ./output)/video-ingest/<id>/transcript.md
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { falVideoRouter, falVideoModel, loadEnvValue } from './fal-router.mjs';
+import { falVideoRouter, falVideoModel, loadEnvValue, outputDir } from './fal-router.mjs';
 
 async function loadKey() {
   return loadEnvValue(['GEMINI_API_KEY', 'GOOGLE_API_KEY']);
@@ -22,7 +22,7 @@ const URL_ = process.argv[2];
 if (!URL_) { console.error('Usage: transcribe-gemini.mjs "<youtube-url>" [outfile.md]'); process.exit(2); }
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const VID = (URL_.match(/[?&]v=([\w-]{6,})/) || URL_.match(/youtu\.be\/([\w-]{6,})/) || [])[1] || 'video';
-const OUT = process.argv[3] || join(process.cwd(), 'output', 'video-ingest', VID, 'transcript.md');
+const OUT = process.argv[3] || join(outputDir(), 'video-ingest', VID, 'transcript.md');
 
 const PROMPT = `Transkribiere dieses Video möglichst WORTGETREU (verbatim) in der ORIGINALSPRACHE des Sprechers (Englisch → Englisch lassen, Deutsch → Deutsch lassen). Regeln:
 - Gib das gesprochene Wort vollständig in lesbaren Absätzen wieder.

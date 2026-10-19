@@ -28,7 +28,7 @@ cp .env.example .env
 # FAL_KEY in .env eintragen
 ```
 
-Die Scripts suchen den Key in dieser Reihenfolge: Umgebungsvariable → `.env` im Arbeitsverzeichnis → `.env` im Skill-Verzeichnis.
+Die Scripts suchen den Key in dieser Reihenfolge: Umgebungsvariable → Datei aus `VIDEO_INGEST_ENV_FILE` (falls gesetzt) → `.env` im Arbeitsverzeichnis → `.env` im Skill-Verzeichnis.
 
 ## 3 · Erster Lauf
 
@@ -36,7 +36,7 @@ Die Scripts suchen den Key in dieser Reihenfolge: Umgebungsvariable → `.env` i
 node <skill-verzeichnis>/scripts/analyze-gemini.mjs "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 ```
 
-Wenn `✅ Analyse … understanding.md` erscheint, funktioniert das Setup. Der Output liegt in `./output/video-ingest/<id>/`.
+Wenn `✅ Analyse … understanding.md` erscheint, funktioniert das Setup. Der Output liegt in `./output/video-ingest/<id>/`. Ablage pro Projekt umstellen: `VIDEO_INGEST_OUTPUT_DIR` und `VIDEO_INGEST_ANALYSIS_DIR` (siehe SKILL.md, „Konfiguration pro Projekt“).
 
 ## 4 · Nur für Weg C: Supabase-Bucket (Reels / lokale Dateien)
 
